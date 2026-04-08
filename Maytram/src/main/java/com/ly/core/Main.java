@@ -9,8 +9,6 @@ import java.util.Scanner;
 
 public class Main {
 
-    // ⚠️ DÁN LINK RAW CỦA GITHUB GIST VÀO ĐÂY (Giữ nguyên dấu ngoặc kép)
-// Đã xóa mã phiên bản 10e9c258... để luôn lấy nội dung mới nhất khi Giám thị Edit
     private static final String GIST_RAW_URL = "https://gist.githubusercontent.com/nguyenvanlyolno1-coder/905e9a98eceb65de1628c5c0b09d480d/raw/config.txt";
 
     public static void main(String[] args) {

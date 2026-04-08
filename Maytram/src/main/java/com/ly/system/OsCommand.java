@@ -1,60 +1,73 @@
 package com.ly.system;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.net.URI;
+
 public class OsCommand {
 
-    public static String execute(String commandType) {
-        try {
-            // Chuẩn bị mảng chứa lệnh Terminal (Dùng bash cho môi trường Linux)
-            String[] cmd = {"bash", "-c", ""};
+    // Biến lưu trữ link Ngrok hiện tại
+    public static String currentServerUrl = "";
 
-            if (commandType.equals("BLOCK")) {
-                System.out.println("⚙️ [System] KÍCH HOẠT CHẾ ĐỘ PHÒNG THI (Khóa mạng)...");
-                // Lệnh echo mô phỏng việc cấu hình iptables
-                cmd[2] = "echo 'Thực thi: iptables -F && iptables -A OUTPUT -p tcp -d 192.168.1.100 --dport 8080 -j ACCEPT && iptables -P OUTPUT DROP'";
-            } else if (commandType.equals("ALLOW")) {
-                System.out.println("⚙️ [System] HỦY CHẾ ĐỘ PHÒNG THI (Mở mạng)...");
-                cmd[2] = "echo 'Thực thi: iptables -F && iptables -P OUTPUT ACCEPT'";
-            } else {
-                System.out.println("⚠️ [System] Lệnh không được hỗ trợ: " + commandType);
-                return "";
-            }
+    // TÊN MIỀN TRANG WEB THI (Bạn có thể đổi tên miền trường bạn vào đây)com
+    public static final String EXAM_DOMAIN = "youtube.com";
 
-            // Yêu cầu Hệ điều hành chạy lệnh
-            Process process = Runtime.getRuntime().exec(cmd);
-
-            // Đọc kết quả mà Terminal trả về (giống như bạn đang gõ trên màn hình đen)
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println("   > [Terminal Output]: " + line);
-            }
-
-            process.waitFor(); // Đợi lệnh chạy xong
-            System.out.println("✅ [System] Đã thực thi xong lệnh cấp OS.");
-
-        } catch (Exception e) {
-            System.err.println("❌ [System] Lỗi khi gọi hệ điều hành: " + e.getMessage());
-        }
-        return "RESULT|" + commandType + "|SUCCESS";
-    }
-    public static String getSystemInfo() {
-        try {
-            InetAddress localHost = InetAddress.getLocalHost();
-            return "REG|" + localHost.getHostName() + "|" + localHost.getHostAddress();
-        } catch (Exception e) {
-            return "REG|Unknown|0.0.0.0";
-        }
-    }
-    // Sửa lại hàm getSystemInfo để nhận msv
     public static String getSystemInfo(String msv) {
         try {
-            java.net.InetAddress localHost = java.net.InetAddress.getLocalHost();
+            InetAddress localHost = InetAddress.getLocalHost();
             return "REG|" + msv + " - " + localHost.getHostName() + "|" + localHost.getHostAddress();
         } catch (Exception e) {
             return "REG|" + msv + " - Unknown|0.0.0.0";
+        }
+    }
+
+    public static void execute(String command) {
+        if (command.equals("BLOCK")) {
+            lockNetwork();
+        } else if (command.equals("ALLOW")) {
+            unlockNetwork();
+        }
+    }
+
+    private static void lockNetwork() {
+        try {
+            // Tách lấy domain của Ngrok từ cái link wss://...
+            URI uri = new URI(currentServerUrl);
+            String ngrokHost = uri.getHost();
+
+            // Chuỗi lệnh iptables "bàn tay sắt"
+            String[] cmd = {
+                    "/bin/sh", "-c",
+                    "iptables -F OUTPUT && " +                                  // 1. Xóa các luật Output cũ
+                            "iptables -A OUTPUT -o lo -j ACCEPT && " +                  // 2. Cho phép tiến trình nội bộ chạy
+                            "iptables -A OUTPUT -p udp --dport 53 -j ACCEPT && " +      // 3. Mở cổng DNS để dịch tên miền
+                            "iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT && " +
+                            "iptables -A OUTPUT -d " + EXAM_DOMAIN + " -j ACCEPT && " + // 4. Đục lỗ cho trang thi
+                            "iptables -A OUTPUT -d " + ngrokHost + " -j ACCEPT && " +   // 5. Đục lỗ cho Server Ngrok
+                            "iptables -P OUTPUT DROP"                                   // 6. KHÓA CHẶT MỌI THỨ CÒN LẠI
+            };
+
+            System.out.println("🔒 KÍCH HOẠT KHÓA MẠNG (Whitelist)!");
+            Process p = Runtime.getRuntime().exec(cmd);
+            p.waitFor();
+
+        } catch (Exception e) {
+            System.out.println("⚠️ Lỗi khóa mạng: " + e.getMessage());
+        }
+    }
+
+    private static void unlockNetwork() {
+        try {
+            String[] cmd = {
+                    "/bin/sh", "-c",
+                    "iptables -P OUTPUT ACCEPT && iptables -F OUTPUT" // Phục hồi trạng thái mặc định
+            };
+
+            System.out.println("🔓 ĐÃ MỞ KHÓA MẠNG TOÀN BỘ!");
+            Process p = Runtime.getRuntime().exec(cmd);
+            p.waitFor();
+
+        } catch (Exception e) {
+            System.out.println("⚠️ Lỗi mở mạng: " + e.getMessage());
         }
     }
 }

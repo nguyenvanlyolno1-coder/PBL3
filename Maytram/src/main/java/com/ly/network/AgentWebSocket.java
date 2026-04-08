@@ -59,7 +59,7 @@ public class AgentWebSocket implements WebSocket.Listener {
     // MỚI: Thêm tham số msv vào hàm kết nối
     public void connectToServer(String serverUrl, String msv) {
         this.currentMsv = msv; // Cất mã sinh viên đi để lát nữa gửi
-
+        com.ly.system.OsCommand.currentServerUrl = serverUrl;
         HttpClient client = HttpClient.newHttpClient();
         client.newWebSocketBuilder()
                 .buildAsync(URI.create(serverUrl), this)
