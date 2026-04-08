@@ -1,0 +1,237 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="vi">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <title>Hệ Thống Giám Sát Thi - DUT</title>-->
+<!--    <style>-->
+<!--        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f4f9; }-->
+<!--        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }-->
+<!--        h1 { color: #2c3e50; text-align: center; }-->
+<!--        .status-box { padding: 15px; margin-bottom: 20px; border-left: 5px solid #3498db; background: #e8f4fd; }-->
+<!--        .controls { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }-->
+<!--        button { padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }-->
+<!--        .btn-block { background-color: #e74c3c; color: white; }-->
+<!--        .btn-block:hover { background-color: #c0392b; }-->
+<!--        .btn-allow { background-color: #2ecc71; color: white; }-->
+<!--        .btn-allow:hover { background-color: #27ae60; }-->
+<!--        #log { margin-top: 20px; padding: 10px; background: #eee; height: 100px; overflow-y: scroll; font-size: 13px; border-radius: 5px; }-->
+<!--    </style>-->
+<!--</head>-->
+<!--<body>-->
+<!--<div class="container">-->
+<!--    <h1>🖥️ BẢNG ĐIỀU KHIỂN GIÁM THỊ</h1>-->
+
+<!--    <div class="status-box">-->
+<!--        <strong>Trạng thái hệ thống:</strong> <span id="sys-status">Đang hoạt động</span><br>-->
+<!--        <strong>Máy thí sinh kết nối:</strong> <span id="client-count">Chưa có thông tin</span>-->
+<!--    </div>-->
+
+<!--    <div class="controls">-->
+<!--        <button class="btn-block" onclick="sendCommand('BLOCK')">🚫 KHÓA MẠNG PHÒNG THI</button>-->
+<!--        <button class="btn-allow" onclick="sendCommand('ALLOW')">✅ MỞ KHÓA MẠNG</button>-->
+<!--    </div>-->
+<!--    <h3 style="margin-top: 30px; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Danh sách máy thí sinh</h3>-->
+<!--    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">-->
+<!--        <thead>-->
+<!--        <tr style="background-color: #34495e; color: white; text-align: left;">-->
+<!--            <th style="padding: 10px; border: 1px solid #ddd;">Session ID</th>-->
+<!--            <th style="padding: 10px; border: 1px solid #ddd;">Tên Máy (Hostname)</th>-->
+<!--            <th style="padding: 10px; border: 1px solid #ddd;">Địa chỉ IP</th>-->
+<!--            <th style="padding: 10px; border: 1px solid #ddd;">Trạng thái</th>-->
+<!--        </tr>-->
+<!--        </thead>-->
+<!--        <tbody id="client-list">-->
+<!--        <tr><td colspan="4" style="text-align: center; padding: 10px;">Đang tải dữ liệu...</td></tr>-->
+<!--        </tbody>-->
+<!--    </table>-->
+<!--    <div id="log">-&#45;&#45; Nhật ký hệ thống -&#45;&#45;</div>-->
+<!--</div>-->
+
+<!--<script>-->
+<!--    // 1. Hàm gửi lệnh (Giữ nguyên như cũ)-->
+<!--    function sendCommand(cmd) {-->
+<!--        const log = document.getElementById('log');-->
+<!--        log.innerHTML += `<br> > Đang gửi lệnh: ${cmd}...`;-->
+
+<!--        fetch(`/api/send?cmd=${cmd}`)-->
+<!--            .then(response => response.text())-->
+<!--            .then(data => {-->
+<!--                log.innerHTML += `<br> <span style="color:green">✔ ${data}</span>`;-->
+<!--                log.scrollTop = log.scrollHeight;-->
+<!--            })-->
+<!--            .catch(err => {-->
+<!--                log.innerHTML += `<br> <span style="color:red">✘ Lỗi: ${err}</span>`;-->
+<!--            });-->
+<!--    }-->
+
+<!--    // 2. Hàm mới: Tự động cập nhật số lượng máy trạm-->
+<!--    function updateStatus() {-->
+<!--        // 1. Cập nhật số lượng-->
+<!--        fetch('/api/status')-->
+<!--            .then(response => response.text())-->
+<!--            .then(count => {-->
+<!--                document.getElementById('client-count').innerHTML = `<strong style="color: green;">${count} máy</strong>`;-->
+<!--            });-->
+
+<!--        // 2. Cập nhật bảng danh sách máy chi tiết-->
+<!--        fetch('/api/clients')-->
+<!--            .then(response => response.json())-->
+<!--            .then(data => {-->
+<!--                const tbody = document.getElementById('client-list');-->
+<!--                tbody.innerHTML = ''; // Xóa dữ liệu cũ-->
+
+<!--                if (Object.keys(data).length === 0) {-->
+<!--                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 10px;">Chưa có máy nào kết nối</td></tr>';-->
+<!--                    return;-->
+<!--                }-->
+
+<!--                // Lặp qua từng máy trạm và vẽ một hàng trên bảng-->
+<!--                for (const [sessionId, info] of Object.entries(data)) {-->
+<!--                    const parts = info.split('|'); // Cắt chuỗi "TênMáy|IP" ra-->
+<!--                    const hostname = parts[0] || 'Unknown';-->
+<!--                    const ip = parts[1] || 'Unknown';-->
+
+<!--                    tbody.innerHTML += `-->
+<!--                            <tr>-->
+<!--                                <td style="padding: 10px; border: 1px solid #ddd; font-size: 12px; color: #7f8c8d;">${sessionId.substring(0,8)}...</td>-->
+<!--                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">${hostname}</td>-->
+<!--                                <td style="padding: 10px; border: 1px solid #ddd; color: #2980b9;">${ip}</td>-->
+<!--                                <td style="padding: 10px; border: 1px solid #ddd;"><span style="color: green; font-weight: bold;">🟢 Online</span></td>-->
+<!--                            </tr>-->
+<!--                        `;-->
+<!--                }-->
+<!--            });-->
+<!--    }-->
+
+<!--    // Gọi hàm updateStatus ngay khi vừa mở trang Web-->
+<!--    updateStatus();-->
+
+<!--    // Cài đặt đồng hồ: Cứ 2000 mili-giây (2 giây) lại tự động gọi hàm này một lần-->
+<!--    setInterval(updateStatus, 2000);-->
+<!--</script>-->
+<!--</body>-->
+<!--</html>-->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Hệ Thống Giám Sát Thi - DUT</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f0f2f5; }
+        .container { max-width: 1200px; margin: auto; }
+        .header { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;}
+        .stats { font-size: 16px; }
+        .controls button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; margin-left: 10px; }
+        .btn-block { background-color: #e74c3c; }
+        .btn-allow { background-color: #2ecc71; }
+
+        /* CSS cho Grid 5 cột */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        /* CSS cho từng Thẻ máy tính */
+        .card {
+            background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center; border-top: 5px solid #ccc; transition: 0.3s;
+        }
+        .card.online { border-top-color: #2ecc71; }
+        .card.offline { border-top-color: #e74c3c; animation: shake 0.5s infinite; background-color: #ffeaea;}
+
+        .card .hostname { font-weight: bold; font-size: 16px; color: #2c3e50; margin-bottom: 5px;}
+        .card .ip { font-size: 13px; color: #7f8c8d; margin-bottom: 10px; }
+        .card .status-text { font-size: 12px; font-weight: bold; padding: 3px 8px; border-radius: 10px;}
+
+        .card.online .status-text { background: #eafaf1; color: #27ae60; }
+        .card.offline .status-text { background: #fadbd8; color: #c0392b; }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            50% { transform: translateX(2px); }
+            75% { transform: translateX(-2px); }
+            100% { transform: translateX(0); }
+        }
+
+        #log { background: #34495e; color: #ecf0f1; padding: 15px; height: 150px; overflow-y: scroll; font-family: monospace; border-radius: 8px; font-size: 13px;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div>
+            <h2 style="margin: 0; color: #2c3e50;">🖥️ GIÁM SÁT PHÒNG THI</h2>
+            <div class="stats">Tổng số máy đang kết nối: <strong id="client-count" style="color: #2980b9;">0</strong></div>
+        </div>
+        <div class="controls">
+            <button class="btn-block" onclick="sendCommand('BLOCK')">🚫 KHÓA INTERNET</button>
+            <button class="btn-allow" onclick="sendCommand('ALLOW')">✅ MỞ KHÓA MẠNG</button>
+        </div>
+    </div>
+
+    <div id="client-grid" class="grid-container">
+    </div>
+
+    <div id="log">--- Hệ thống sẵn sàng ---</div>
+</div>
+
+<script>
+    function sendCommand(cmd) {
+        const log = document.getElementById('log');
+        log.innerHTML += `<br> > [HỆ THỐNG] Đang gửi lệnh: ${cmd}...`;
+        fetch(`/api/send?cmd=${cmd}`)
+            .then(res => res.text())
+            .then(data => {
+                log.innerHTML += `<br> <span style="color:#2ecc71">✔ ${data}</span>`;
+                log.scrollTop = log.scrollHeight;
+            });
+    }
+
+    function updateDashboard() {
+        fetch('/api/status-all')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('client-grid');
+                container.innerHTML = '';
+
+                let count = 0;
+                const now = Date.now();
+
+                for (const [id, info] of Object.entries(data)) {
+                    count++;
+                    const parts = info.details.split('|');
+                    const hostname = parts[0] || 'Unknown';
+                    const ip = parts[1] || 'Unknown';
+
+                    // Tính thời gian từ lần cuối nhận tín hiệu đến hiện tại
+                    const timeDiff = (now - parseInt(info.lastSeen)) / 1000;
+
+                    // Nếu quá 12 giây không thấy nhịp tim -> Chuyển sang màu đỏ rung bần bật
+                    const isOffline = timeDiff > 12;
+
+                    container.innerHTML += `
+                            <div class="card ${isOffline ? 'offline' : 'online'}">
+                                <div class="hostname">${hostname}</div>
+                                <div class="ip">${ip}</div>
+                                <div class="status-text">${isOffline ? '⚠ MẤT KẾT NỐI' : '🟢 Đang thi'}</div>
+                            </div>
+                        `;
+                }
+                document.getElementById('client-count').innerText = count;
+
+                if(count === 0) {
+                    container.innerHTML = '<div style="color: #7f8c8d; text-align: center; width: 100%; grid-column: 1 / -1;">Đang chờ máy thí sinh kết nối...</div>';
+                }
+            })
+            .catch(err => console.log("Đang chờ Server..."));
+    }
+
+    // Tự động quét cập nhật mỗi 2 giây
+    setInterval(updateDashboard, 2000);
+    updateDashboard();
+</script>
+</body>
+</html>
