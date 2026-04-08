@@ -9,7 +9,7 @@ public class OsCommand {
     public static String currentServerUrl = "";
 
     // TÊN MIỀN TRANG WEB THI (Bạn có thể đổi tên miền trường bạn vào đây)com
-    public static final String EXAM_DOMAIN = "http://lms.dut.udn.vn/";
+    public static final String EXAM_DOMAIN = "lms.dut.udn.vn";
 
     public static String getSystemInfo(String msv) {
         try {
