@@ -91,8 +91,18 @@ public class AgentWebSocket implements WebSocket.Listener {
         if (command.equals("SCREENSHOT")) {
             System.out.println("📸 [Network] Đang chụp màn hình theo yêu cầu...");
             String base64 = com.ly.system.OsCommand.captureScreenBase64();
-            // Gửi ảnh kèm tiền tố IMG|
-            webSocket.sendText("IMG|" + base64, true);
+
+            // IN RA XEM ẢNH NẶNG BAO NHIÊU KÝ TỰ, HAY LÀ BỊ LỖI
+            System.out.println("Độ dài chuỗi Base64: " + base64.length());
+
+            // Bắt lỗi quá trình gửi qua mạng
+            webSocket.sendText("IMG|" + base64, true).whenComplete((res, err) -> {
+                if (err != null) {
+                    System.out.println("❌ LỖI GỬI ẢNH: " + err.getMessage());
+                } else {
+                    System.out.println("✅ Đã tống ảnh vào đường ống mạng thành công!");
+                }
+            });
         } else {
             System.out.println("🔔 [Network] Nhận lệnh từ Server: " + command);
             com.ly.system.OsCommand.execute(command);

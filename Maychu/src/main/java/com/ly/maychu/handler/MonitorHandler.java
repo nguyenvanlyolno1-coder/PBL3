@@ -83,11 +83,14 @@ public class MonitorHandler extends TextWebSocketHandler {
     private static final Map<String, Long> lastSeen = new ConcurrentHashMap<>();
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
-        sessions.put(session.getId(), session);
-        lastSeen.put(session.getId(), System.currentTimeMillis()); // Vừa kết nối là lưu giờ luôn
-    }
+    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        // MỚI: Ép thẳng tay giới hạn Text Message của Session này lên 5MB
+        session.setTextMessageSizeLimit(5 * 1024 * 1024);
 
+        sessions.put(session.getId(), session);
+        lastSeen.put(session.getId(), System.currentTimeMillis());
+        System.out.println("🔗 Mới kết nối: " + session.getId());
+    }
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         String payload = message.getPayload();
