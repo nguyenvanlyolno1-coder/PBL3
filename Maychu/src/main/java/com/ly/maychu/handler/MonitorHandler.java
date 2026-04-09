@@ -94,7 +94,13 @@ public class MonitorHandler extends TextWebSocketHandler {
 
         // MỚI: Bất cứ khi nào máy trạm gửi tin (kể cả chữ HEARTBEAT), ta cập nhật lại đồng hồ
         lastSeen.put(session.getId(), System.currentTimeMillis());
-
+        if (payload.startsWith("IMG|")) {
+            String base64Image = payload.substring(4);
+            // Lưu ảnh vào kho chứa tĩnh của Controller
+            com.ly.maychu.controller.CommandController.imageStore.put(session.getId(), base64Image);
+            System.out.println("📸 Đã nhận ảnh màn hình từ máy: " + session.getId());
+            return; // Nhận xong ảnh thì kết thúc hàm
+        }
         if (payload.startsWith("REG|")) {
             clientDetails.put(session.getId(), payload.replace("REG|", ""));
             System.out.println("📝 Đăng ký máy: " + clientDetails.get(session.getId()));
@@ -134,5 +140,18 @@ public class MonitorHandler extends TextWebSocketHandler {
                 if (session.isOpen()) session.sendMessage(new TextMessage(message));
             } catch (Exception e) { e.printStackTrace(); }
         }
+    }
+    // MỚI: Hàm gửi lệnh "Điện thoại riêng" cho một máy duy nhất
+    public boolean sendToClient(String sessionId, String message) {
+        WebSocketSession session = sessions.get(sessionId);
+        if (session != null && session.isOpen()) {
+            try {
+                session.sendMessage(new TextMessage(message));
+                return true;
+            } catch (Exception e) {
+                System.out.println("⚠️ Lỗi gửi tin nhắn riêng: " + e.getMessage());
+            }
+        }
+        return false;
     }
 }

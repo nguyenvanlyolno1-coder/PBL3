@@ -18,4 +18,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(monitorHandler, "/ws-monitor").setAllowedOrigins("*");
     }
+    // Cấp phép cho WebSocket nhận tin nhắn (ảnh) lên tới 2MB
+    @org.springframework.context.annotation.Bean
+    public org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean createWebSocketContainer() {
+        org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean container = new org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean();
+        container.setMaxTextMessageBufferSize(2048 * 1024); // 2MB
+        return container;
+    }
 }
