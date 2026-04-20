@@ -18,12 +18,16 @@ public class OsCommand {
     // TÊN MIỀN TRANG WEB THI (Bạn có thể đổi tên miền trường bạn vào đây)com
     public static final String EXAM_DOMAIN = "lms.dut.udn.vn";
 
-    public static String getSystemInfo(String msv) {
+    // Sửa trong OsCommand.java
+    public static String getSystemInfo(String msv, String hoTen, String caThiId) {
         try {
             InetAddress localHost = InetAddress.getLocalHost();
-            return "REG|" + msv + " - " + localHost.getHostName() + "|" + localHost.getHostAddress();
+            return "REG|" + msv + "|" + hoTen + "|"
+                    + localHost.getHostName() + "|"
+                    + localHost.getHostAddress() + "|"
+                    + caThiId;
         } catch (Exception e) {
-            return "REG|" + msv + " - Unknown|0.0.0.0";
+            return "REG|" + msv + "|" + hoTen + "|Unknown|0.0.0.0|" + caThiId;
         }
     }
 

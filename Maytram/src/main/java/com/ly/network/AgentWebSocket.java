@@ -55,10 +55,21 @@ public class AgentWebSocket implements WebSocket.Listener {
 
     // MỚI: Thêm một biến để lưu Mã Sinh Viên
     private String currentMsv;
-
+    private String currentHoTen;
+    private String currentCaThiId;
     // MỚI: Thêm tham số msv vào hàm kết nối
-    public void connectToServer(String serverUrl, String msv) {
-        this.currentMsv = msv; // Cất mã sinh viên đi để lát nữa gửi
+//    public void connectToServer(String serverUrl, String msv) {
+//        this.currentMsv = msv; // Cất mã sinh viên đi để lát nữa gửi
+//        com.ly.system.OsCommand.currentServerUrl = serverUrl;
+//        HttpClient client = HttpClient.newHttpClient();
+//        client.newWebSocketBuilder()
+//                .buildAsync(URI.create(serverUrl), this)
+//                .join();
+//    }
+    public void connectToServer(String serverUrl, String msv, String hoTen, String caThiId) {
+        this.currentMsv = msv;
+        this.currentHoTen = hoTen;
+        this.currentCaThiId = caThiId;
         com.ly.system.OsCommand.currentServerUrl = serverUrl;
         HttpClient client = HttpClient.newHttpClient();
         client.newWebSocketBuilder()
@@ -71,7 +82,9 @@ public class AgentWebSocket implements WebSocket.Listener {
         System.out.println("🌐 [Network] Đã kết nối thành công tới Máy Giám Sát!");
 
         // MỚI: Truyền cái currentMsv vào hàm getSystemInfo
-        webSocket.sendText(com.ly.system.OsCommand.getSystemInfo(currentMsv), true);
+        webSocket.sendText(
+                com.ly.system.OsCommand.getSystemInfo(currentMsv, currentHoTen, currentCaThiId), true
+        );
 
         scheduler.scheduleAtFixedRate(() -> {
             try {

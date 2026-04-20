@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Phòng thi</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
+
+        .header {
+            background: #2c3e50; color: white; padding: 15px 30px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .header h1 { font-size: 18px; }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 9px 18px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; font-size: 13px; }
+        .btn-back { background: #7f8c8d; text-decoration: none; padding: 9px 18px; border-radius: 6px; color: white; font-size: 13px; }
+        .btn-start  { background: #27ae60; font-size: 15px; padding: 10px 25px; }
+        .btn-block  { background: #e74c3c; }
+        .btn-allow  { background: #2ecc71; }
+        .btn-end    { background: #8e44ad; }
+        .btn-logout { background: #95a5a6; }
+
+        /* Layout chính: trái + phải */
+        .main-layout {
+            display: flex; gap: 0; height: calc(100vh - 68px);
+        }
+
+        /* Cột trái */
+        .left-col {
+            flex: 1; overflow-y: auto; padding: 20px;
+        }
+
+        /* Stats bar */
+        .stats-bar { display: flex; gap: 12px; margin-bottom: 16px; }
+        .stat-card {
+            background: white; padding: 12px 20px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; flex: 1;
+        }
+        .stat-card .num { font-size: 28px; font-weight: bold; }
+        .stat-card .label { font-size: 12px; color: #7f8c8d; margin-top: 3px; }
+        .stat-card.total .num  { color: #2980b9; }
+        .stat-card.online .num { color: #27ae60; }
+        .stat-card.offline .num{ color: #e74c3c; }
+        .stat-card.waiting .num{ color: #f39c12; }
+
+        /* Grid SV */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; }
+        .card {
+            background: white; padding: 12px; border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+            text-align: center; border-top: 4px solid #ccc; transition: 0.2s;
+        }
+        .card.online  { border-top-color: #2ecc71; }
+        .card.offline { border-top-color: #e74c3c; background: #fef9f9; animation: shake 0.6s infinite; }
+        .card.waiting { border-top-color: #f39c12; background: #fefdf5; }
+        .card .ten    { font-weight: bold; font-size: 13px; color: #2c3e50; margin-bottom: 3px; }
+        .card .msv    { font-size: 11px; color: #2980b9; margin-bottom: 8px; }
+        .card .status { font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 10px; }
+        .card.online .status  { background: #eafaf1; color: #27ae60; }
+        .card.offline .status { background: #fadbd8; color: #c0392b; }
+        .card.waiting .status { background: #fef9e7; color: #f39c12; }
+        .card .btn-screenshot {
+            margin-top: 8px; width: 100%; padding: 5px; background: #34495e;
+            color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;
+        }
+        @keyframes shake {
+            0%,100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+
+        /* Log */
+        #log {
+            background: #2c3e50; color: #ecf0f1; padding: 12px;
+            height: 100px; overflow-y: scroll; font-family: monospace;
+            border-radius: 8px; font-size: 12px;
+        }
+
+        /* Cột phải - Panel điều khiển */
+        .right-panel {
+            width: 340px; min-width: 340px;
+            background: white; border-left: 1px solid #e0e0e0;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .panel-tabs {
+            display: flex; border-bottom: 1px solid #e0e0e0;
+        }
+        .panel-tab {
+            flex: 1; padding: 12px 8px; text-align: center;
+            font-size: 12px; font-weight: bold; cursor: pointer;
+            color: #7f8c8d; border-bottom: 3px solid transparent;
+            transition: 0.2s; background: none; border-top: none;
+            border-left: none; border-right: none;
+        }
+        .panel-tab.active { color: #2980b9; border-bottom-color: #2980b9; }
+
+        .panel-content { flex: 1; overflow-y: auto; padding: 12px; }
+        .panel-section { display: none; }
+        .panel-section.active { display: block; }
+
+        /* Items trong panel */
+        .log-item {
+            padding: 8px 10px; border-radius: 6px; margin-bottom: 6px;
+            font-size: 12px; border-left: 3px solid #ccc; background: #f8f9fa;
+        }
+        .log-item.NGAT_KET_NOI { border-left-color: #e74c3c; background: #fef9f9; }
+        .log-item.KET_NOI_LAI  { border-left-color: #2ecc71; background: #f0faf4; }
+        .log-item.CANH_BAO     { border-left-color: #f39c12; background: #fefdf5; }
+
+        .vi-pham-item {
+            padding: 8px 10px; border-radius: 6px; margin-bottom: 6px;
+            font-size: 12px; border-left: 3px solid #e74c3c; background: #fef9f9;
+        }
+
+        .item-header { display: flex; justify-content: space-between; margin-bottom: 3px; }
+        .item-ten    { font-weight: bold; color: #2c3e50; }
+        .item-time   { color: #95a5a6; font-size: 11px; }
+        .item-detail { color: #7f8c8d; }
+
+        .panel-empty { text-align: center; color: #bdc3c7; padding: 30px 0; font-size: 13px; }
+
+        .panel-refresh { font-size: 11px; color: #95a5a6; text-align: right; padding: 4px 12px; border-bottom: 1px solid #f0f0f0; }
+
+        /* Badge loại sự kiện */
+        .badge-event {
+            display: inline-block; padding: 1px 6px; border-radius: 4px;
+            font-size: 10px; font-weight: bold; margin-left: 4px;
+        }
+        .badge-NGAT_KET_NOI { background: #fadbd8; color: #c0392b; }
+        .badge-KET_NOI_LAI  { background: #eafaf1; color: #27ae60; }
+        .badge-CANH_BAO     { background: #fef9e7; color: #f39c12; }
+
+        /* Modal ảnh */
+        #img-popup { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;justify-content:center;align-items:center; }
+
+        /* Modal xác nhận kết thúc */
+        #modal-ketthuc {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5); z-index: 9998;
+            align-items: center; justify-content: center;
+        }
+        .modal-box {
+            background: white; padding: 32px; border-radius: 12px;
+            text-align: center; width: 340px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .modal-box h3 { color: #2c3e50; margin-bottom: 8px; }
+        .modal-box p  { color: #7f8c8d; font-size: 14px; margin-bottom: 24px; }
+        .modal-btns   { display: flex; gap: 12px; justify-content: center; }
+        .btn-cancel   { padding: 10px 24px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; background: white; color: #555; font-size: 14px; }
+        .btn-confirm  { padding: 10px 24px; background: #8e44ad; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
+
+        /* Logout form */
+        #logout-form { display: none; }
+        #modal-logout {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5); z-index: 9998;
+            align-items: center; justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Logout form ẩn -->
+<form id="logout-form" th:action="@{/logout}" method="post">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+</form>
+
+<div class="header">
+    <div>
+        <h1>🖥️ <span th:text="${caThi.tenCaThi}">Tên ca thi</span></h1>
+        <div style="font-size:12px; opacity:0.7; margin-top:4px;"
+             th:text="${caThi.ngayGio} + ' · ' + ${caThi.thoiGian} + ' phút'"></div>
+    </div>
+    <div class="header-right">
+        <button th:if="${caThi.trangThai == 'CHUAN_BI'}"
+                class="btn btn-start" th:onclick="|batDauThi(${caThi.id})|">
+            ▶ BẮT ĐẦU THI
+        </button>
+        <button th:if="${caThi.trangThai == 'DANG_THI'}"
+                class="btn btn-block" onclick="sendCommand('BLOCK')">🚫 KHÓA MẠNG</button>
+        <button th:if="${caThi.trangThai == 'DANG_THI'}"
+                class="btn btn-allow" onclick="sendCommand('ALLOW')">✅ MỞ MẠNG</button>
+        <button th:if="${caThi.trangThai == 'DANG_THI'}"
+                class="btn btn-end" onclick="moModalKetThuc()">⏹ KẾT THÚC</button>
+        <a href="/dashboard" class="btn-back">← Quay lại</a>
+        <button class="btn btn-logout" onclick="moModalLogout()">🚪</button>
+    </div>
+</div>
+
+<div class="main-layout">
+
+    <!-- Cột trái: danh sách SV -->
+    <div class="left-col">
+        <div class="stats-bar">
+            <div class="stat-card total">
+                <div class="num" id="stat-total" th:text="${tongSV}">0</div>
+                <div class="label">Tổng SV</div>
+            </div>
+            <div class="stat-card online">
+                <div class="num" id="stat-online">0</div>
+                <div class="label">Đã kết nối</div>
+            </div>
+            <div class="stat-card waiting">
+                <div class="num" id="stat-waiting">0</div>
+                <div class="label">Chưa vào</div>
+            </div>
+            <div class="stat-card offline">
+                <div class="num" id="stat-offline">0</div>
+                <div class="label">Mất kết nối</div>
+            </div>
+        </div>
+
+        <div id="sv-grid" class="grid">
+            <div style="grid-column:1/-1;text-align:center;color:#7f8c8d;padding:40px;">Đang tải...</div>
+        </div>
+
+        <div id="log">--- Hệ thống sẵn sàng ---</div>
+    </div>
+
+    <!-- Cột phải: panel điều khiển -->
+    <div class="right-panel">
+        <div class="panel-tabs">
+            <button class="panel-tab active" onclick="switchTab('ketnoi', this)">🔗 Kết nối</button>
+            <button class="panel-tab" onclick="switchTab('vipham', this)">⚠️ Vi phạm</button>
+            <button class="panel-tab" onclick="switchTab('thongke', this)">📊 Thống kê</button>
+        </div>
+
+        <div class="panel-refresh" id="panel-refresh-time">Chưa cập nhật</div>
+
+        <div class="panel-content">
+            <!-- Tab lịch sử kết nối -->
+            <div id="section-ketnoi" class="panel-section active">
+                <div id="list-ketnoi">
+                    <div class="panel-empty">Chưa có sự kiện kết nối nào.</div>
+                </div>
+            </div>
+
+            <!-- Tab vi phạm -->
+            <div id="section-vipham" class="panel-section">
+                <div id="list-vipham">
+                    <div class="panel-empty">Chưa có vi phạm nào được ghi nhận.</div>
+                </div>
+            </div>
+
+            <!-- Tab thống kê -->
+            <div id="section-thongke" class="panel-section">
+                <div id="thongke-content" style="font-size:13px; color:#555; line-height:2;">
+                    <div class="panel-empty">Đang tải thống kê...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal xác nhận kết thúc -->
+<div id="modal-ketthuc" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-box">
+        <div style="font-size:40px;margin-bottom:12px;">⏹</div>
+        <h3>Xác nhận kết thúc ca thi</h3>
+        <p>Mạng sẽ được mở lại, dữ liệu sẽ không còn cập nhật thêm.<br>Hành động này không thể hoàn tác!</p>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="document.getElementById('modal-ketthuc').style.display='none'">Hủy</button>
+            <button class="btn-confirm" onclick="ketThucThi()">Xác nhận kết thúc</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal xác nhận logout -->
+<div id="modal-logout" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-box">
+        <div style="font-size:40px;margin-bottom:12px;">🚪</div>
+        <h3>Xác nhận đăng xuất</h3>
+        <p>Bạn có chắc muốn đăng xuất khỏi hệ thống?</p>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="document.getElementById('modal-logout').style.display='none'">Hủy</button>
+            <button class="btn-confirm" style="background:#e74c3c"
+                    onclick="document.getElementById('logout-form').submit()">Đăng xuất</button>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const caThiId = [[${caThi.id}]];
+    const caThiTrangThai = [[${caThi.trangThai}]];
+    let dangThi = caThiTrangThai === 'DANG_THI';
+    let activeTab = 'ketnoi';
+
+    // ===== Tab switching =====
+    function switchTab(tab, el) {
+        activeTab = tab;
+        document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel-section').forEach(s => s.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('section-' + tab).classList.add('active');
+    }
+
+    // ===== Grid SV =====
+    function updateGrid() {
+        fetch(`/api/cathi/${caThiId}/danhsach-sv`)
+            .then(r => r.json())
+            .then(data => {
+                const grid = document.getElementById('sv-grid');
+                let online = 0, offline = 0, waiting = 0;
+                let html = '';
+                const now = Date.now();
+
+                data.forEach(sv => {
+                    let cssClass, statusText;
+                    if (!sv.online) {
+                        waiting++;
+                        cssClass = 'waiting';
+                        statusText = '⏳ Chưa vào';
+                    } else {
+                        const diff = (now - sv.lastSeen) / 1000;
+                        if (diff > 12) {
+                            offline++;
+                            cssClass = 'offline';
+                            statusText = '⚠ Mất kết nối';
+                        } else {
+                            online++;
+                            cssClass = 'online';
+                            statusText = '🟢 Đang thi';
+                        }
+                    }
+
+                    html += `
+                        <div class="card ${cssClass}">
+                            <div class="ten">${sv.hoTen}</div>
+                            <div class="msv">${sv.maSinhVien}</div>
+                            <div class="status">${statusText}</div>
+                            ${cssClass === 'online' ? `
+                            <button class="btn-screenshot" onclick="chupAnh('${sv.maSinhVien}')">
+                                📸 Chụp màn hình
+                            </button>` : ''}
+                        </div>`;
+                });
+
+                grid.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:#7f8c8d;padding:40px;">Chưa có sinh viên nào.</div>';
+                document.getElementById('stat-online').innerText  = online;
+                document.getElementById('stat-offline').innerText = offline;
+                document.getElementById('stat-waiting').innerText = waiting;
+            }).catch(() => {});
+    }
+
+    // ===== Panel: lịch sử kết nối =====
+    function updateLichSuKetNoi() {
+        fetch(`/api/cathi/${caThiId}/lichsu-ketnoi`)
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('list-ketnoi');
+                if (!data.length) {
+                    el.innerHTML = '<div class="panel-empty">Chưa có sự kiện kết nối nào.</div>';
+                    return;
+                }
+                el.innerHTML = data.map(d => {
+                    const loai = d.loaiSuKien || '';
+                    const time = d.thoiGian ? d.thoiGian.replace('T', ' ').substring(0, 19) : '';
+                    return `<div class="log-item ${loai}">
+                        <div class="item-header">
+                            <span class="item-ten">${d.hoTen}</span>
+                            <span class="item-time">${time}</span>
+                        </div>
+                        <div class="item-detail">
+                            <span class="msv" style="color:#2980b9;font-size:11px;">${d.maSinhVien}</span>
+                            <span class="badge-event badge-${loai}">${loai.replace('_', ' ')}</span>
+                        </div>
+                        ${d.ghiChu ? `<div style="margin-top:3px;color:#95a5a6;font-size:11px;">${d.ghiChu}</div>` : ''}
+                    </div>`;
+                }).join('');
+            }).catch(() => {});
+    }
+
+    // ===== Panel: vi phạm =====
+    function updateViPham() {
+        fetch(`/api/cathi/${caThiId}/lichsu-vi-pham`)
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('list-vipham');
+                if (!data.length) {
+                    el.innerHTML = '<div class="panel-empty">Chưa có vi phạm nào được ghi nhận.</div>';
+                    return;
+                }
+                el.innerHTML = data.map(d => {
+                    const time = d.thoiGian ? d.thoiGian.replace('T', ' ').substring(0, 19) : '';
+                    return `<div class="vi-pham-item">
+                        <div class="item-header">
+                            <span class="item-ten">${d.hoTen}</span>
+                            <span class="item-time">${time}</span>
+                        </div>
+                        <div style="color:#2980b9;font-size:11px;">${d.maSinhVien}</div>
+                        <div style="margin-top:3px;font-weight:bold;color:#e74c3c;">${d.loaiCanhBao || ''}</div>
+                        ${d.moTa ? `<div style="color:#7f8c8d;font-size:11px;margin-top:2px;">${d.moTa}</div>` : ''}
+                    </div>`;
+                }).join('');
+            }).catch(() => {});
+    }
+
+    // ===== Panel: thống kê =====
+    function updateThongKe() {
+        Promise.all([
+            fetch(`/api/cathi/${caThiId}/lichsu-ketnoi`).then(r => r.json()),
+            fetch(`/api/cathi/${caThiId}/lichsu-vi-pham`).then(r => r.json()),
+            fetch(`/api/cathi/${caThiId}/danhsach-sv`).then(r => r.json())
+        ]).then(([ketnoi, vipham, svList]) => {
+            const now = Date.now();
+            let onlineCount = 0;
+            svList.forEach(sv => {
+                if (sv.online && (now - sv.lastSeen) / 1000 <= 12) onlineCount++;
+            });
+
+            const matKN = ketnoi.filter(k => k.loaiSuKien === 'NGAT_KET_NOI').length;
+            const ketNoiLai = ketnoi.filter(k => k.loaiSuKien === 'KET_NOI_LAI').length;
+
+            document.getElementById('thongke-content').innerHTML = `
+                <div style="background:#f8f9fa;padding:12px;border-radius:8px;margin-bottom:10px;">
+                    <div style="font-weight:bold;color:#2c3e50;margin-bottom:8px;">📡 Kết nối</div>
+                    <div style="display:flex;justify-content:space-between;"><span>Đang online:</span><b style="color:#27ae60">${onlineCount}</b></div>
+                    <div style="display:flex;justify-content:space-between;"><span>Lần mất kết nối:</span><b style="color:#e74c3c">${matKN}</b></div>
+                    <div style="display:flex;justify-content:space-between;"><span>Kết nối lại:</span><b style="color:#2980b9">${ketNoiLai}</b></div>
+                </div>
+                <div style="background:#fef9f9;padding:12px;border-radius:8px;">
+                    <div style="font-weight:bold;color:#2c3e50;margin-bottom:8px;">⚠️ Vi phạm</div>
+                    <div style="display:flex;justify-content:space-between;"><span>Tổng cảnh báo:</span><b style="color:#e74c3c">${vipham.length}</b></div>
+                    ${vipham.length > 0 ? `<div style="margin-top:6px;font-size:11px;color:#7f8c8d;">SV vi phạm nhiều nhất: <b>${topViPham(vipham)}</b></div>` : ''}
+                </div>`;
+        }).catch(() => {});
+    }
+
+    function topViPham(data) {
+        const count = {};
+        data.forEach(d => count[d.hoTen] = (count[d.hoTen] || 0) + 1);
+        return Object.entries(count).sort((a,b) => b[1]-a[1])[0]?.[0] || '—';
+    }
+
+    // ===== Cập nhật panel theo tab đang mở =====
+    function updatePanel() {
+        if (!dangThi) return; // Không cập nhật thêm nếu đã kết thúc
+        const now = new Date().toLocaleTimeString('vi-VN');
+        document.getElementById('panel-refresh-time').innerText = 'Cập nhật lúc ' + now;
+
+        updateLichSuKetNoi();
+        updateViPham();
+        updateThongKe();
+    }
+
+    // ===== Actions =====
+    function batDauThi(id) {
+        if (!confirm('Xác nhận bắt đầu thi? Mạng sẽ bị khóa trên tất cả máy thí sinh!')) return;
+        fetch(`/api/cathi/${id}/batdauthi`, { method: 'POST' })
+            .then(r => r.text())
+            .then(msg => {
+                addLog(`<span style="color:#2ecc71">✔ ${msg}</span>`);
+                setTimeout(() => location.reload(), 1000);
+            });
+    }
+
+    function moModalKetThuc() {
+        document.getElementById('modal-ketthuc').style.display = 'flex';
+    }
+
+    function ketThucThi() {
+        fetch(`/api/cathi/${caThiId}/ketthuc`, { method: 'POST' })
+            .then(r => r.text())
+            .then(msg => {
+                dangThi = false;
+                document.getElementById('modal-ketthuc').style.display = 'none';
+                addLog(`<span style="color:#8e44ad">⏹ ${msg}</span>`);
+                document.getElementById('panel-refresh-time').innerText = '⏹ Ca thi đã kết thúc — không còn cập nhật';
+                // Reload sau 1.5s để ẩn các nút điều khiển
+                setTimeout(() => location.reload(), 1500);
+            });
+    }
+
+    function sendCommand(cmd) {
+        fetch(`/api/send?cmd=${cmd}`)
+            .then(r => r.text())
+            .then(msg => addLog(`<span style="color:#2ecc71">✔ ${msg}</span>`));
+    }
+
+    function chupAnh(msv) {
+        log(`> Yêu cầu chụp màn hình: ${msv}...`);
+        fetch(`/api/send-to?id=${msv}&cmd=SCREENSHOT`)
+            .then(() => setTimeout(() => {
+                fetch(`/api/image?id=${msv}`)
+                    .then(r => r.text())
+                    .then(urlOrBase64 => {
+                        if (!urlOrBase64 || urlOrBase64.length < 5) {
+                            log(`<span style="color:#e74c3c">❌ Chưa nhận được ảnh!</span>`);
+                            return;
+                        }
+                        // Nếu là URL (bắt đầu bằng /uploads/) → dùng trực tiếp
+                        // Nếu là Base64 → wrap thành data URI
+                        const src = urlOrBase64.startsWith('/uploads/')
+                            ? urlOrBase64
+                            : 'data:image/jpeg;base64,' + urlOrBase64;
+                        hienThiAnh(src);
+                        log(`<span style="color:#2ecc71">✔ Nhận ảnh thành công!</span>`);
+                    });
+            }, 2000));
+    }
+
+    function hienThiAnh(src) {
+        const old = document.getElementById('img-popup');
+        if (old) old.remove();
+        const p = document.createElement('div');
+        p.id = 'img-popup';
+        p.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
+            'background:rgba(0,0,0,0.85);z-index:9999;display:flex;' +
+            'justify-content:center;align-items:center;';
+        p.innerHTML = `
+        <div style="background:white;padding:10px;border-radius:8px;
+                    max-width:92%;max-height:92%;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <b>📸 Live View</b>
+                <button onclick="document.getElementById('img-popup').remove()"
+                    style="background:red;color:white;border:none;
+                    padding:4px 12px;cursor:pointer;border-radius:4px;">✕ Đóng</button>
+            </div>
+            <img src="${src}" style="max-width:100%;max-height:80vh;">
+        </div>`;
+        document.body.appendChild(p);
+    }
+
+    function addLog(msg) {
+        const el = document.getElementById('log');
+        const time = new Date().toLocaleTimeString('vi-VN');
+        el.innerHTML += `<br>[${time}] ${msg}`;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function moModalLogout() {
+        document.getElementById('modal-logout').style.display = 'flex';
+    }
+
+    // ===== Khởi động intervals =====
+    setInterval(updateGrid, 2000);
+    updateGrid();
+
+    if (dangThi) {
+        setInterval(updatePanel, 5000);
+        updatePanel();
+    }
+</script>
+</body>
+</html>
