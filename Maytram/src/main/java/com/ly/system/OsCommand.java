@@ -49,31 +49,79 @@ public class OsCommand {
 
             StringBuilder rules = new StringBuilder();
             rules.append("iptables -F OUTPUT && ");
+            rules.append("iptables -F INPUT && ");
             rules.append("iptables -A OUTPUT -o lo -j ACCEPT && ");
+            rules.append("iptables -A INPUT -i lo -j ACCEPT && ");
+
+            // Cho phép DNS trước (cần để resolve được domain)
             rules.append("iptables -A OUTPUT -p udp --dport 53 -j ACCEPT && ");
             rules.append("iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT && ");
+            rules.append("iptables -A INPUT -p udp --sport 53 -j ACCEPT && ");
+            rules.append("iptables -A INPUT -p tcp --sport 53 -j ACCEPT && ");
 
-            // Thêm rule cho từng URL được phép
+            // Resolve và thêm rule cho từng URL được phép
             if (allowedUrlsCsv != null && !allowedUrlsCsv.isEmpty()) {
-                for (String url : allowedUrlsCsv.split(",")) {
-                    url = url.trim();
-                    if (!url.isEmpty()) {
-                        rules.append("iptables -A OUTPUT -d ").append(url).append(" -j ACCEPT && ");
+                for (String domain : allowedUrlsCsv.split(",")) {
+                    domain = domain.trim();
+                    if (domain.isEmpty()) continue;
+
+                    // Resolve tất cả IP của domain
+                    try {
+                        java.net.InetAddress[] addresses =
+                                java.net.InetAddress.getAllByName(domain);
+                        for (java.net.InetAddress addr : addresses) {
+                            String ip = addr.getHostAddress();
+                            System.out.println("  → " + domain + " = " + ip);
+                            rules.append("iptables -A OUTPUT -d ").append(ip).append(" -j ACCEPT && ");
+                            rules.append("iptables -A INPUT -s ").append(ip).append(" -j ACCEPT && ");
+                        }
+                    } catch (Exception e) {
+                        System.out.println("  ⚠️ Không resolve được: " + domain);
                     }
                 }
             }
 
-            // Luôn cho phép ngrok server
-            rules.append("iptables -A OUTPUT -d ").append(ngrokHost).append(" -j ACCEPT && ");
-            rules.append("iptables -P OUTPUT DROP");
+            // Resolve và cho phép ngrok server
+            try {
+                java.net.InetAddress[] ngrokAddrs =
+                        java.net.InetAddress.getAllByName(ngrokHost);
+                for (java.net.InetAddress addr : ngrokAddrs) {
+                    String ip = addr.getHostAddress();
+                    System.out.println("  → ngrok: " + ngrokHost + " = " + ip);
+                    rules.append("iptables -A OUTPUT -d ").append(ip).append(" -j ACCEPT && ");
+                    rules.append("iptables -A INPUT -s ").append(ip).append(" -j ACCEPT && ");
+                }
+            } catch (Exception e) {
+                System.out.println("  ⚠️ Không resolve được ngrok: " + ngrokHost);
+            }
+
+            // Cho phép các kết nối ESTABLISHED (response packets)
+            rules.append("iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT && ");
+            rules.append("iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT && ");
+
+            // KHÓA TẤT CẢ CÒN LẠI
+            rules.append("iptables -P OUTPUT DROP && ");
+            rules.append("iptables -P INPUT DROP");
+
+            System.out.println("🔒 ĐANG KHÓA MẠNG...");
+            System.out.println("   Lệnh iptables: " + rules.toString());
 
             String[] cmd = {"/bin/sh", "-c", rules.toString()};
-            System.out.println("🔒 KÍCH HOẠT KHÓA MẠNG với " +
-                    (allowedUrlsCsv != null ? allowedUrlsCsv.split(",").length : 0) + " URL được phép!");
-            Runtime.getRuntime().exec(cmd).waitFor();
+            Process p = Runtime.getRuntime().exec(cmd);
+
+            // Đọc stderr để xem lỗi nếu có
+            String stderr = new String(p.getErrorStream().readAllBytes());
+            int exitCode = p.waitFor();
+
+            if (exitCode == 0) {
+                System.out.println("✅ Đã khóa mạng thành công!");
+            } else {
+                System.out.println("❌ Lỗi khóa mạng (exit=" + exitCode + "): " + stderr);
+            }
 
         } catch (Exception e) {
-            System.out.println("⚠️ Lỗi khóa mạng: " + e.getMessage());
+            System.out.println("⚠️ Lỗi lockNetwork: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
