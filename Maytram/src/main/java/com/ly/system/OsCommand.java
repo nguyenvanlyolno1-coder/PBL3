@@ -140,19 +140,40 @@ public class OsCommand {
         }
     }
 
-    private static void unlockNetwork() {
+    public static void unlockNetwork() {
         try {
-            String[] cmd = {
-                    "/bin/sh", "-c",
-                    "iptables -P OUTPUT ACCEPT && iptables -F OUTPUT" // Phục hồi trạng thái mặc định
-            };
+            StringBuilder rules = new StringBuilder();
 
-            System.out.println("🔓 ĐÃ MỞ KHÓA MẠNG TOÀN BỘ!");
+            // 1. Phục hồi trạng thái mặc định (ACCEPT) cho IPv4 và xóa sạch các luật cũ
+            rules.append("iptables -P INPUT ACCEPT && ");
+            rules.append("iptables -P OUTPUT ACCEPT && ");
+            rules.append("iptables -P FORWARD ACCEPT && ");
+            rules.append("iptables -F && ");
+
+            // 2. Phục hồi trạng thái mặc định (ACCEPT) cho IPv6 và xóa sạch các luật cũ
+            rules.append("ip6tables -P INPUT ACCEPT && ");
+            rules.append("ip6tables -P OUTPUT ACCEPT && ");
+            rules.append("ip6tables -P FORWARD ACCEPT && ");
+            rules.append("ip6tables -F");
+
+            String[] cmd = {"/bin/sh", "-c", rules.toString()};
+
+            System.out.println("🔓 ĐANG MỞ KHÓA MẠNG...");
             Process p = Runtime.getRuntime().exec(cmd);
-            p.waitFor();
+
+            // Đọc luồng lỗi để kiểm tra xem có sự cố gì không
+            String stderr = new String(p.getErrorStream().readAllBytes());
+            int exitCode = p.waitFor();
+
+            if (exitCode == 0) {
+                System.out.println("✅ ĐÃ MỞ KHÓA MẠNG TOÀN BỘ TRỞ LẠI BÌNH THƯỜNG!");
+            } else {
+                System.out.println("❌ Lỗi mở mạng (exit=" + exitCode + "): " + stderr);
+            }
 
         } catch (Exception e) {
-            System.out.println("⚠️ Lỗi mở mạng: " + e.getMessage());
+            System.out.println("⚠️ Lỗi unlockNetwork: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     public static String captureScreenBase64() {
