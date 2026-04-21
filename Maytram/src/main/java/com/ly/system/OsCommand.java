@@ -48,29 +48,38 @@ public class OsCommand {
             String ngrokHost = uri.getHost();
 
             StringBuilder rules = new StringBuilder();
+
+            // 1. Khóa hoàn toàn cửa hậu IPv6
+            rules.append("ip6tables -P INPUT DROP && ");
+            rules.append("ip6tables -P OUTPUT DROP && ");
+            rules.append("ip6tables -P FORWARD DROP && ");
+
+            // 2. Xóa luật cũ của IPv4 và mở localhost
             rules.append("iptables -F OUTPUT && ");
             rules.append("iptables -F INPUT && ");
             rules.append("iptables -A OUTPUT -o lo -j ACCEPT && ");
             rules.append("iptables -A INPUT -i lo -j ACCEPT && ");
 
-            // Cho phép DNS trước (cần để resolve được domain)
+            // 3. Cho phép DNS trước (cần để resolve được domain)
             rules.append("iptables -A OUTPUT -p udp --dport 53 -j ACCEPT && ");
             rules.append("iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT && ");
             rules.append("iptables -A INPUT -p udp --sport 53 -j ACCEPT && ");
             rules.append("iptables -A INPUT -p tcp --sport 53 -j ACCEPT && ");
 
-            // Resolve và thêm rule cho từng URL được phép
+            // 4. Resolve và thêm rule cho từng URL được phép
             if (allowedUrlsCsv != null && !allowedUrlsCsv.isEmpty()) {
                 for (String domain : allowedUrlsCsv.split(",")) {
                     domain = domain.trim();
                     if (domain.isEmpty()) continue;
 
-                    // Resolve tất cả IP của domain
                     try {
-                        java.net.InetAddress[] addresses =
-                                java.net.InetAddress.getAllByName(domain);
+                        java.net.InetAddress[] addresses = java.net.InetAddress.getAllByName(domain);
                         for (java.net.InetAddress addr : addresses) {
                             String ip = addr.getHostAddress();
+
+                            // LỌC BỎ IPV6 (Tránh lỗi iptables)
+                            if (ip.contains(":")) continue;
+
                             System.out.println("  → " + domain + " = " + ip);
                             rules.append("iptables -A OUTPUT -d ").append(ip).append(" -j ACCEPT && ");
                             rules.append("iptables -A INPUT -s ").append(ip).append(" -j ACCEPT && ");
@@ -81,12 +90,15 @@ public class OsCommand {
                 }
             }
 
-            // Resolve và cho phép ngrok server
+            // 5. Resolve và cho phép ngrok server
             try {
-                java.net.InetAddress[] ngrokAddrs =
-                        java.net.InetAddress.getAllByName(ngrokHost);
+                java.net.InetAddress[] ngrokAddrs = java.net.InetAddress.getAllByName(ngrokHost);
                 for (java.net.InetAddress addr : ngrokAddrs) {
                     String ip = addr.getHostAddress();
+
+                    // LỌC BỎ IPV6 (Tránh lỗi iptables)
+                    if (ip.contains(":")) continue;
+
                     System.out.println("  → ngrok: " + ngrokHost + " = " + ip);
                     rules.append("iptables -A OUTPUT -d ").append(ip).append(" -j ACCEPT && ");
                     rules.append("iptables -A INPUT -s ").append(ip).append(" -j ACCEPT && ");
@@ -95,16 +107,15 @@ public class OsCommand {
                 System.out.println("  ⚠️ Không resolve được ngrok: " + ngrokHost);
             }
 
-            // Cho phép các kết nối ESTABLISHED (response packets)
+            // 6. Cho phép các kết nối ESTABLISHED (response packets)
             rules.append("iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT && ");
             rules.append("iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT && ");
 
-            // KHÓA TẤT CẢ CÒN LẠI
+            // 7. KHÓA CHẶT MỌI KẾT NỐI KHÁC
             rules.append("iptables -P OUTPUT DROP && ");
             rules.append("iptables -P INPUT DROP");
 
             System.out.println("🔒 ĐANG KHÓA MẠNG...");
-            System.out.println("   Lệnh iptables: " + rules.toString());
 
             String[] cmd = {"/bin/sh", "-c", rules.toString()};
             Process p = Runtime.getRuntime().exec(cmd);
