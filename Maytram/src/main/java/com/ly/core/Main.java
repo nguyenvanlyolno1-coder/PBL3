@@ -108,22 +108,7 @@ public class Main {
         System.out.println("DEBUG JSON: " + authResult); // THÊM DÒNG NÀY
 
         System.out.println("\n📋 Danh sách ca thi của bạn:");
-//        // Parse thông tin từ JSON đơn giản
-//        String hoTen = parseJsonField(authResult, "hoTen");
-//        String maSinhVien = parseJsonField(authResult, "maSinhVien");
-//        String tenCaThi = parseJsonField(authResult, "tenCaThi");
-//
-//        System.out.println("👤 Xin chào: " + hoTen + " (" + maSinhVien + ")");
-//        System.out.println("📋 Ca thi: " + tenCaThi);
-//        System.out.println("\n🌐 Đang kết nối vào phòng thi...");
-//
-//        // Kết nối WebSocket với thông tin SV
-//        AgentWebSocket agent = new AgentWebSocket();
-//        agent.connectToServer(serverUrl, maSinhVien, hoTen);
-//
-//        System.out.println("✅ Đã vào phòng thi! Gõ 'exit' để thoát.");
-//        while (!scanner.nextLine().equalsIgnoreCase("exit")) { }
-// Sau khi xác thực thành công, parse danh sách ca thi
+
         System.out.println("\n📋 Danh sách ca thi của bạn:");
         System.out.println("─────────────────────────────");
 
@@ -153,6 +138,9 @@ public class Main {
 
         String caThiId = danhSachCaThi.get(chon)[0];
         String tenCaThi = danhSachCaThi.get(chon)[1];
+        String allowedUrls = danhSachCaThi.get(chon)[4];
+        System.out.println("🌐 URLs được phép: [" + allowedUrls + "]");
+        System.out.println("   Số URL: " + (allowedUrls.isEmpty() ? 0 : allowedUrls.split(",").length));
         String maSinhVien = parseJsonField(authResult, "maSinhVien");
         String hoTen = parseJsonField(authResult, "hoTen");
         System.out.println("\n✅ Đã chọn: " + tenCaThi);
@@ -160,7 +148,7 @@ public class Main {
 
 // Kết nối WebSocket kèm caThiId
         AgentWebSocket agent = new AgentWebSocket();
-        agent.connectToServer(serverUrl, maSinhVien, hoTen, caThiId);
+        agent.connectToServer(serverUrl, maSinhVien, hoTen, caThiId, allowedUrls);
     }
 
     private static String fetchUrlFromGist() {
@@ -200,28 +188,88 @@ public class Main {
         } catch (Exception e) { return "Unknown"; }
     }
     // Parse JSON array đơn giản không cần thư viện
+// Thêm field vào String[] — index 4 = allowedUrls (dạng csv)
     private static List<String[]> parseCaThiList(String json) {
         List<String[]> result = new java.util.ArrayList<>();
         try {
-            // Tìm mảng danhSachCaThi
-            int start = json.indexOf("\"danhSachCaThi\":[") + 17;
-            int end = json.lastIndexOf("]");
-            String arr = json.substring(start, end);
+            String key = "\"danhSachCaThi\":[";
+            int start = json.indexOf(key) + key.length();
 
-            // Tách từng object
-            String[] objects = arr.split("\\},\\{");
+            // Tìm ] đóng của mảng danhSachCaThi (phải tìm đúng cặp ngoặc)
+            int depth = 0;
+            int end = start;
+            for (int i = start; i < json.length(); i++) {
+                if (json.charAt(i) == '[') depth++;
+                else if (json.charAt(i) == ']') {
+                    if (depth == 0) { end = i; break; }
+                    depth--;
+                }
+            }
+
+            String arr = json.substring(start, end).trim();
+            if (arr.isEmpty()) return result;
+
+            // Tách từng object {} (xử lý nested array)
+            List<String> objects = splitObjects(arr);
+
             for (String obj : objects) {
-                String id = parseJsonField(obj, "caThiId");
-                // caThiId là số, không có dấu ""
-                id = obj.replaceAll(".*\"caThiId\":(\\d+).*", "$1");
-                String ten = parseJsonField(obj, "tenCaThi");
+                // Parse từng field riêng lẻ — không phụ thuộc thứ tự
+                String id   = obj.replaceAll(".*\"caThiId\":(\\d+).*", "$1");
+                String ten  = parseJsonField(obj, "tenCaThi");
                 String ngay = parseJsonField(obj, "ngayGio");
-                String tt = parseJsonField(obj, "trangThai");
-                result.add(new String[]{id, ten, ngay, tt});
+                String tt   = parseJsonField(obj, "trangThai");
+                String urls = parseJsonArray(obj, "allowedUrls");
+
+                result.add(new String[]{id, ten, ngay, tt, urls});
             }
         } catch (Exception e) {
             System.out.println("⚠️ Lỗi parse ca thi: " + e.getMessage());
         }
         return result;
+    }
+
+    // Tách các object {} trong mảng, xử lý đúng nested []
+    private static List<String> splitObjects(String arr) {
+        List<String> objects = new java.util.ArrayList<>();
+        int depth = 0;
+        int start = -1;
+        for (int i = 0; i < arr.length(); i++) {
+            char c = arr.charAt(i);
+            if (c == '{') {
+                if (depth == 0) start = i;
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0 && start != -1) {
+                    objects.add(arr.substring(start + 1, i)); // Nội dung trong {}
+                    start = -1;
+                }
+            }
+        }
+        return objects;
+    }
+
+    // Sửa parseJsonArray — tìm đúng cặp ngoặc []
+    private static String parseJsonArray(String json, String field) {
+        try {
+            String key = "\"" + field + "\":[";
+            int start = json.indexOf(key);
+            if (start == -1) return "";
+            start += key.length();
+
+            // Tìm ] đóng đúng cặp
+            int depth = 0;
+            for (int i = start; i < json.length(); i++) {
+                if (json.charAt(i) == '[') depth++;
+                else if (json.charAt(i) == ']') {
+                    if (depth == 0) {
+                        String raw = json.substring(start, i);
+                        return raw.replace("\"", "").replace(" ", "").trim();
+                    }
+                    depth--;
+                }
+            }
+            return "";
+        } catch (Exception e) { return ""; }
     }
 }

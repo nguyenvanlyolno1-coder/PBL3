@@ -17,7 +17,7 @@ public class OsCommand {
 
     // TÊN MIỀN TRANG WEB THI (Bạn có thể đổi tên miền trường bạn vào đây)com
     public static final String EXAM_DOMAIN = "lms.dut.udn.vn";
-
+    public static String allowedUrls = "";
     // Sửa trong OsCommand.java
     public static String getSystemInfo(String msv, String hoTen, String caThiId) {
         try {
@@ -31,35 +31,46 @@ public class OsCommand {
         }
     }
 
+    // Thêm static field lưu URLs
+
+
     public static void execute(String command) {
         if (command.equals("BLOCK")) {
-            lockNetwork();
+            lockNetwork(allowedUrls); // Dùng URLs đã lưu
         } else if (command.equals("ALLOW")) {
             unlockNetwork();
         }
     }
 
-    private static void lockNetwork() {
+    public static void lockNetwork(String allowedUrlsCsv) {
         try {
-            // Tách lấy domain của Ngrok từ cái link wss://...
             URI uri = new URI(currentServerUrl);
             String ngrokHost = uri.getHost();
 
-            // Chuỗi lệnh iptables "bàn tay sắt"
-            String[] cmd = {
-                    "/bin/sh", "-c",
-                    "iptables -F OUTPUT && " +                                  // 1. Xóa các luật Output cũ
-                            "iptables -A OUTPUT -o lo -j ACCEPT && " +                  // 2. Cho phép tiến trình nội bộ chạy
-                            "iptables -A OUTPUT -p udp --dport 53 -j ACCEPT && " +      // 3. Mở cổng DNS để dịch tên miền
-                            "iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT && " +
-                            "iptables -A OUTPUT -d " + EXAM_DOMAIN + " -j ACCEPT && " + // 4. Đục lỗ cho trang thi
-                            "iptables -A OUTPUT -d " + ngrokHost + " -j ACCEPT && " +   // 5. Đục lỗ cho Server Ngrok
-                            "iptables -P OUTPUT DROP"                                   // 6. KHÓA CHẶT MỌI THỨ CÒN LẠI
-            };
+            StringBuilder rules = new StringBuilder();
+            rules.append("iptables -F OUTPUT && ");
+            rules.append("iptables -A OUTPUT -o lo -j ACCEPT && ");
+            rules.append("iptables -A OUTPUT -p udp --dport 53 -j ACCEPT && ");
+            rules.append("iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT && ");
 
-            System.out.println("🔒 KÍCH HOẠT KHÓA MẠNG (Whitelist)!");
-            Process p = Runtime.getRuntime().exec(cmd);
-            p.waitFor();
+            // Thêm rule cho từng URL được phép
+            if (allowedUrlsCsv != null && !allowedUrlsCsv.isEmpty()) {
+                for (String url : allowedUrlsCsv.split(",")) {
+                    url = url.trim();
+                    if (!url.isEmpty()) {
+                        rules.append("iptables -A OUTPUT -d ").append(url).append(" -j ACCEPT && ");
+                    }
+                }
+            }
+
+            // Luôn cho phép ngrok server
+            rules.append("iptables -A OUTPUT -d ").append(ngrokHost).append(" -j ACCEPT && ");
+            rules.append("iptables -P OUTPUT DROP");
+
+            String[] cmd = {"/bin/sh", "-c", rules.toString()};
+            System.out.println("🔒 KÍCH HOẠT KHÓA MẠNG với " +
+                    (allowedUrlsCsv != null ? allowedUrlsCsv.split(",").length : 0) + " URL được phép!");
+            Runtime.getRuntime().exec(cmd).waitFor();
 
         } catch (Exception e) {
             System.out.println("⚠️ Lỗi khóa mạng: " + e.getMessage());

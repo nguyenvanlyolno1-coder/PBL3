@@ -41,6 +41,8 @@
 //}
 package com.ly.network;
 
+import com.ly.system.OsCommand;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -57,6 +59,7 @@ public class AgentWebSocket implements WebSocket.Listener {
     private String currentMsv;
     private String currentHoTen;
     private String currentCaThiId;
+    private String allowedUrls;
     // MỚI: Thêm tham số msv vào hàm kết nối
 //    public void connectToServer(String serverUrl, String msv) {
 //        this.currentMsv = msv; // Cất mã sinh viên đi để lát nữa gửi
@@ -66,13 +69,15 @@ public class AgentWebSocket implements WebSocket.Listener {
 //                .buildAsync(URI.create(serverUrl), this)
 //                .join();
 //    }
-    public void connectToServer(String serverUrl, String msv, String hoTen, String caThiId) {
-        this.currentMsv = msv;
-        this.currentHoTen = hoTen;
+    public void connectToServer(String serverUrl, String msv,
+                                String hoTen, String caThiId, String allowedUrls) {
+        this.currentMsv    = msv;
+        this.currentHoTen  = hoTen;
         this.currentCaThiId = caThiId;
-        com.ly.system.OsCommand.currentServerUrl = serverUrl;
-        HttpClient client = HttpClient.newHttpClient();
-        client.newWebSocketBuilder()
+        this.allowedUrls   = allowedUrls;
+        OsCommand.currentServerUrl = serverUrl;
+        HttpClient.newHttpClient()
+                .newWebSocketBuilder()
                 .buildAsync(URI.create(serverUrl), this)
                 .join();
     }
@@ -80,12 +85,12 @@ public class AgentWebSocket implements WebSocket.Listener {
     @Override
     public void onOpen(WebSocket webSocket) {
         System.out.println("🌐 [Network] Đã kết nối thành công tới Máy Giám Sát!");
-
+        OsCommand.allowedUrls = this.allowedUrls;
         // MỚI: Truyền cái currentMsv vào hàm getSystemInfo
         webSocket.sendText(
                 com.ly.system.OsCommand.getSystemInfo(currentMsv, currentHoTen, currentCaThiId), true
         );
-
+        System.out.println("🔐 allowedUrls đã set: [" + OsCommand.allowedUrls + "]");
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 webSocket.sendText("HEARTBEAT", true);
@@ -118,6 +123,7 @@ public class AgentWebSocket implements WebSocket.Listener {
             });
         } else {
             System.out.println("🔔 [Network] Nhận lệnh từ Server: " + command);
+            System.out.println("📩 Lệnh: [" + command + "] | URLs: [" + OsCommand.allowedUrls + "]");
             com.ly.system.OsCommand.execute(command);
         }
 

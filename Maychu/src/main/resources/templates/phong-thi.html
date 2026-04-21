@@ -211,7 +211,19 @@
                 <div class="label">Mất kết nối</div>
             </div>
         </div>
-
+        <!-- Thêm vào sau stats-bar -->
+        <div style="background:white;border-radius:10px;padding:16px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="font-size:15px;color:#2c3e50;">🌐 URL được phép truy cập</h3>
+                <button onclick="moThemUrl()"
+                        style="background:#2980b9;color:white;border:none;padding:6px 14px;
+                   border-radius:6px;cursor:pointer;font-size:13px;">+ Thêm URL</button>
+            </div>
+            <div id="url-list" style="display:flex;flex-wrap:wrap;gap:8px;">
+                <span style="color:#7f8c8d;font-size:13px;">Đang tải...</span>
+            </div>
+        </div>
         <div id="sv-grid" class="grid">
             <div style="grid-column:1/-1;text-align:center;color:#7f8c8d;padding:40px;">Đang tải...</div>
         </div>
@@ -480,23 +492,21 @@
     }
 
     function chupAnh(msv) {
-        log(`> Yêu cầu chụp màn hình: ${msv}...`);
+        addLog(`> Yêu cầu chụp màn hình: ${msv}...`);  // ✅
         fetch(`/api/send-to?id=${msv}&cmd=SCREENSHOT`)
             .then(() => setTimeout(() => {
                 fetch(`/api/image?id=${msv}`)
                     .then(r => r.text())
                     .then(urlOrBase64 => {
                         if (!urlOrBase64 || urlOrBase64.length < 5) {
-                            log(`<span style="color:#e74c3c">❌ Chưa nhận được ảnh!</span>`);
+                            addLog(`<span style="color:#e74c3c">❌ Chưa nhận được ảnh!</span>`);  // ✅
                             return;
                         }
-                        // Nếu là URL (bắt đầu bằng /uploads/) → dùng trực tiếp
-                        // Nếu là Base64 → wrap thành data URI
                         const src = urlOrBase64.startsWith('/uploads/')
                             ? urlOrBase64
                             : 'data:image/jpeg;base64,' + urlOrBase64;
                         hienThiAnh(src);
-                        log(`<span style="color:#2ecc71">✔ Nhận ảnh thành công!</span>`);
+                        addLog(`<span style="color:#2ecc71">✔ Nhận ảnh thành công!</span>`);  // ✅
                     });
             }, 2000));
     }
@@ -533,7 +543,26 @@
     function moModalLogout() {
         document.getElementById('modal-logout').style.display = 'flex';
     }
-
+    function loadWhitelist() {
+        fetch(`/api/admin/cathi/${caThiId}/whitelist`)
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('url-list');
+                if (!data.length) {
+                    el.innerHTML = '<span style="color:#e74c3c;font-size:13px;">⚠️ Chưa có URL nào được phép!</span>';
+                    return;
+                }
+                el.innerHTML = data.map(w => `
+                <div style="display:flex;align-items:center;gap:6px;
+                            background:#eaf4fd;padding:5px 10px;border-radius:20px;">
+                    <span style="font-size:13px;color:#2980b9;">🔗 ${w.url}</span>
+                    ${w.mota ? `<span style="font-size:11px;color:#7f8c8d;">(${w.mota})</span>` : ''}
+                    <button onclick="xoaUrl(${w.id})"
+                        style="background:none;border:none;color:#e74c3c;
+                               cursor:pointer;font-size:14px;line-height:1;">✕</button>
+                </div>`).join('');
+            });
+    }
     // ===== Khởi động intervals =====
     setInterval(updateGrid, 2000);
     updateGrid();
@@ -542,6 +571,54 @@
         setInterval(updatePanel, 5000);
         updatePanel();
     }
+    // Load danh sách URL
+    // function loadWhitelist() {
+    //     fetch(`/api/admin/cathi/${caThiId}/whitelist`)
+    //         .then(r => r.json())
+    //         .then(data => {
+    //             const el = document.getElementById('url-list');
+    //             if (!data.length) {
+    //                 el.innerHTML = '<span style="color:#e74c3c;font-size:13px;">⚠️ Chưa có URL nào được phép!</span>';
+    //                 return;
+    //             }
+    //             el.innerHTML = data.map(w => `
+    //             <div style="display:flex;align-items:center;gap:6px;
+    //                         background:#eaf4fd;padding:5px 10px;border-radius:20px;">
+    //                 <span style="font-size:13px;color:#2980b9;">🔗 ${w.url}</span>
+    //                 ${w.mota ? `<span style="font-size:11px;color:#7f8c8d;">(${w.mota})</span>` : ''}
+    //                 <button onclick="xoaUrl(${w.id})"
+    //                     style="background:none;border:none;color:#e74c3c;
+    //                            cursor:pointer;font-size:14px;line-height:1;">✕</button>
+    //             </div>`).join('');
+    //         });
+    // }
+
+    function moThemUrl() {
+        const url  = prompt('Nhập URL được phép (vd: lms.dut.udn.vn):');
+        if (!url) return;
+        const mota = prompt('Mô tả (có thể bỏ trống):') || '';
+
+        fetch(`/api/admin/cathi/${caThiId}/whitelist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, mota })
+        })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) loadWhitelist();
+                else alert('Lỗi: ' + res.message);
+            });
+    }
+
+    function xoaUrl(urlId) {
+        if (!confirm('Xóa URL này?')) return;
+        fetch(`/api/admin/cathi/${caThiId}/whitelist/${urlId}`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(res => { if (res.success) loadWhitelist(); });
+    }
+
+    // Gọi khi load trang
+    loadWhitelist();
 </script>
 </body>
 </html>

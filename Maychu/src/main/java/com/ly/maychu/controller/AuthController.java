@@ -3,7 +3,9 @@ package com.ly.maychu.controller;
 import com.ly.maychu.model.CaThi;
 import com.ly.maychu.model.ChiTietCaThi;
 import com.ly.maychu.model.NguoiDung;
+import com.ly.maychu.model.WhitelistUrl;
 import com.ly.maychu.repository.CaThiRepository;
+import com.ly.maychu.repository.WhitelistUrlRepository;
 import com.ly.maychu.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +19,8 @@ public class AuthController {
     private com.ly.maychu.repository.ChiTietCaThiRepository chiTietRepo;
     @Autowired
     private AuthService authService;
-
+    @Autowired
+    private WhitelistUrlRepository whitelistRepo;
     @Autowired
     private CaThiRepository caThiRepository;
 
@@ -42,12 +45,19 @@ public class AuthController {
         List<Map<String, Object>> danhSachCaThi = danhSachCtct.stream()
                 .map(ChiTietCaThi::getCaThi)
                 .filter(ca -> ca.getTrangThai().equals("CHUAN_BI"))
+                // Sửa phần map ca thi trong /api/auth/student
                 .map(ca -> {
                     Map<String, Object> m = new java.util.HashMap<>();
                     m.put("caThiId", ca.getId());
                     m.put("tenCaThi", ca.getTenCaThi());
                     m.put("ngayGio", ca.getNgayGio().toString());
                     m.put("trangThai", ca.getTrangThai());
+
+                    // THÊM: Lấy danh sách URL được phép
+                    List<String> urls = whitelistRepo.findByCaThi(ca)
+                            .stream().map(WhitelistUrl::getUrl).toList();
+                    m.put("allowedUrls", urls);
+
                     return m;
                 }).toList();
         Map<String, Object> response = new java.util.HashMap<>();

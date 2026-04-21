@@ -1,7 +1,11 @@
 package com.ly.maychu.controller;
 
+import com.ly.maychu.model.CaThi;
 import com.ly.maychu.model.NguoiDung;
+import com.ly.maychu.model.WhitelistUrl;
+import com.ly.maychu.repository.CaThiRepository;
 import com.ly.maychu.repository.NguoiDungRepository;
+import com.ly.maychu.repository.WhitelistUrlRepository;
 import com.ly.maychu.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +20,10 @@ public class AdminController {
 
     @Autowired private NguoiDungRepository nguoiDungRepo;
     @Autowired private AuthService authService;
-
+    @Autowired
+    private WhitelistUrlRepository whitelistRepo;
+    @Autowired
+    private CaThiRepository caThiRepo;
     // Kiểm tra quyền admin/quan_tri
     private boolean isAdmin(Authentication auth) {
         return auth.getAuthorities().stream()
@@ -375,5 +382,53 @@ public class AdminController {
         ctct.setCaThi(caThi);
         chiTietCaThiRepository.save(ctct);
         success.add(maSV);
+    }
+
+
+    // Lấy danh sách URL của ca thi
+    @GetMapping("/cathi/{id}/whitelist")
+    public ResponseEntity<List<Map<String, Object>>> getWhitelist(@PathVariable Long id) {
+        CaThi ca = caThiRepo.findById(id).orElse(null);
+        if (ca == null) return ResponseEntity.notFound().build();
+
+        List<Map<String, Object>> result = whitelistRepo.findByCaThi(ca).stream()
+                .map(w -> {
+                    Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("id", w.getId());
+                    m.put("url", w.getUrl());
+                    m.put("mota", w.getMota());
+                    return m;
+                }).toList();
+
+        return ResponseEntity.ok(result);
+    }
+
+    // Thêm URL mới
+    @PostMapping("/cathi/{id}/whitelist")
+    public Map<String, Object> themUrl(@PathVariable Long id,
+                                       @RequestBody Map<String, String> body) {
+        try {
+            CaThi ca = caThiRepo.findById(id).orElseThrow();
+            WhitelistUrl w = new WhitelistUrl();
+            w.setCaThi(ca);
+            w.setUrl(body.get("url").trim());
+            w.setMota(body.getOrDefault("mota", ""));
+            whitelistRepo.save(w);
+            return Map.of("success", true, "message", "Đã thêm URL!");
+        } catch (Exception e) {
+            return Map.of("success", false, "message", e.getMessage());
+        }
+    }
+
+    // Xóa URL
+    @DeleteMapping("/cathi/{caThiId}/whitelist/{urlId}")
+    public Map<String, Object> xoaUrl(@PathVariable Long caThiId,
+                                      @PathVariable Long urlId) {
+        try {
+            whitelistRepo.deleteById(urlId);
+            return Map.of("success", true, "message", "Đã xóa URL!");
+        } catch (Exception e) {
+            return Map.of("success", false, "message", e.getMessage());
+        }
     }
 }
