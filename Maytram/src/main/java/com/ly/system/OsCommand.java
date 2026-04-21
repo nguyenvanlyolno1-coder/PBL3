@@ -49,24 +49,24 @@ public class OsCommand {
 
             StringBuilder rules = new StringBuilder();
 
-            // 1. Khóa hoàn toàn cửa hậu IPv6
+            // 1. Dập tắt hoàn toàn "cửa hậu" IPv6 (Puppy Linux / Linux nói chung)
             rules.append("ip6tables -P INPUT DROP && ");
             rules.append("ip6tables -P OUTPUT DROP && ");
             rules.append("ip6tables -P FORWARD DROP && ");
 
-            // 2. Xóa luật cũ của IPv4 và mở localhost
+            // 2. Xóa luật cũ của IPv4 và mở localhost (để các dịch vụ nội bộ chạy bình thường)
             rules.append("iptables -F OUTPUT && ");
             rules.append("iptables -F INPUT && ");
             rules.append("iptables -A OUTPUT -o lo -j ACCEPT && ");
             rules.append("iptables -A INPUT -i lo -j ACCEPT && ");
 
-            // 3. Cho phép DNS trước (cần để resolve được domain)
+            // 3. Cho phép DNS (cổng 53) để phân giải tên miền thành IP
             rules.append("iptables -A OUTPUT -p udp --dport 53 -j ACCEPT && ");
             rules.append("iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT && ");
             rules.append("iptables -A INPUT -p udp --sport 53 -j ACCEPT && ");
             rules.append("iptables -A INPUT -p tcp --sport 53 -j ACCEPT && ");
 
-            // 4. Resolve và thêm rule cho từng URL được phép
+            // 4. Phân giải và cấp phép cho trang web thi (LMS)
             if (allowedUrlsCsv != null && !allowedUrlsCsv.isEmpty()) {
                 for (String domain : allowedUrlsCsv.split(",")) {
                     domain = domain.trim();
@@ -77,10 +77,12 @@ public class OsCommand {
                         for (java.net.InetAddress addr : addresses) {
                             String ip = addr.getHostAddress();
 
-                            // LỌC BỎ IPV6 (Tránh lỗi iptables)
+                            // LỌC BỎ IPv6 (Ngăn lỗi "host/network not found")
                             if (ip.contains(":")) continue;
 
                             System.out.println("  → " + domain + " = " + ip);
+
+                            // Mở đối xứng 2 chiều (đi và về) cho IP này
                             rules.append("iptables -A OUTPUT -d ").append(ip).append(" -j ACCEPT && ");
                             rules.append("iptables -A INPUT -s ").append(ip).append(" -j ACCEPT && ");
                         }
@@ -90,16 +92,18 @@ public class OsCommand {
                 }
             }
 
-            // 5. Resolve và cho phép ngrok server
+            // 5. Phân giải và cấp phép cho Ngrok Server (giữ kết nối với hệ thống giám sát)
             try {
                 java.net.InetAddress[] ngrokAddrs = java.net.InetAddress.getAllByName(ngrokHost);
                 for (java.net.InetAddress addr : ngrokAddrs) {
                     String ip = addr.getHostAddress();
 
-                    // LỌC BỎ IPV6 (Tránh lỗi iptables)
+                    // LỌC BỎ IPv6
                     if (ip.contains(":")) continue;
 
                     System.out.println("  → ngrok: " + ngrokHost + " = " + ip);
+
+                    // Mở đối xứng 2 chiều (đi và về)
                     rules.append("iptables -A OUTPUT -d ").append(ip).append(" -j ACCEPT && ");
                     rules.append("iptables -A INPUT -s ").append(ip).append(" -j ACCEPT && ");
                 }
@@ -107,25 +111,25 @@ public class OsCommand {
                 System.out.println("  ⚠️ Không resolve được ngrok: " + ngrokHost);
             }
 
-            // 6. Cho phép các kết nối ESTABLISHED (response packets)
-            rules.append("iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT && ");
-            rules.append("iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT && ");
+            // (Bước 6 đã được LƯỢC BỎ vì Puppy Linux không có sẵn module theo dõi trạng thái,
+            // và chúng ta cũng đã tự mở đối xứng ở Bước 4 & Bước 5 nên không cần thiết nữa).
 
-            // 7. KHÓA CHẶT MỌI KẾT NỐI KHÁC
+            // 7. KHÓA CHẶT TẤT CẢ CÁC KẾT NỐI CÒN LẠI (Chính sách mặc định)
             rules.append("iptables -P OUTPUT DROP && ");
             rules.append("iptables -P INPUT DROP");
 
             System.out.println("🔒 ĐANG KHÓA MẠNG...");
 
+            // Chạy chuỗi lệnh
             String[] cmd = {"/bin/sh", "-c", rules.toString()};
             Process p = Runtime.getRuntime().exec(cmd);
 
-            // Đọc stderr để xem lỗi nếu có
+            // Đọc luồng lỗi (nếu có)
             String stderr = new String(p.getErrorStream().readAllBytes());
             int exitCode = p.waitFor();
 
             if (exitCode == 0) {
-                System.out.println("✅ Đã khóa mạng thành công!");
+                System.out.println("✅ Đã khóa mạng thành công! (Bản tối ưu cho Puppy Linux)");
             } else {
                 System.out.println("❌ Lỗi khóa mạng (exit=" + exitCode + "): " + stderr);
             }
