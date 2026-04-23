@@ -753,34 +753,6 @@
         document.getElementById('modal-reset').style.display = 'flex';
     }
 
-    // function thucHienResetPassword() {
-    //     const mk1 = document.getElementById('new-password').value;
-    //     const mk2 = document.getElementById('confirm-password').value;
-    //     if (mk1.length < 6) { showAlert('modal-reset-alert', 'error', 'Mật khẩu phải có ít nhất 6 ký tự!'); return; }
-    //     if (mk1 !== mk2)    { showAlert('modal-reset-alert', 'error', 'Mật khẩu xác nhận không khớp!');    return; }
-    //
-    //     xacNhan({
-    //         icon: '🔑', title: 'Xác nhận đặt lại mật khẩu?',
-    //         desc: `Mật khẩu của "${document.getElementById('reset-ten-user').innerText}" sẽ bị thay đổi ngay lập tức.`,
-    //         btnColor: '#e74c3c',
-    //         onOk: () => {
-    //             fetch(`/api/admin/members/${currentMemberId}/reset-password`, {
-    //                 method: 'POST',
-    //                 headers: { 'Content-Type': 'application/json' },
-    //                 body: JSON.stringify({ matKhauMoi: mk1 })
-    //             }).then(r => r.json())
-    //                 .then(res => {
-    //                     showAlert('modal-reset-alert', res.success ? 'success' : 'error',
-    //                         (res.success ? '✅ ' : '❌ ') + res.message);
-    //                     if (res.success) {
-    //                         document.getElementById('new-password').value = '';
-    //                         document.getElementById('confirm-password').value = '';
-    //                     }
-    //                 });
-    //         }
-    //     });
-    // }
-
     // ===== Tạo tài khoản =====
     function moModalTaoTaiKhoan() {
         document.getElementById('modal-tao-tk').style.display = 'flex';
@@ -865,57 +837,7 @@
         });
     }
 
-    // ===== Tạo ca thi =====
-    // function taoCaThi() {
-    //     const ten      = document.getElementById('ct-ten').value.trim();
-    //     const ngayGio  = document.getElementById('ct-ngaygio').value;
-    //     const thoiGian = document.getElementById('ct-thoigian').value;
-    //     const fileSV   = document.getElementById('ct-file-sv').files[0];
-    //     const gvRadio  = document.querySelector('input[name="gv-radio"]:checked');
-    //
-    //     if (!ten)      { showAlert('ct-alert', 'error', 'Vui lòng nhập tên ca thi!'); return; }
-    //     if (!ngayGio)  { showAlert('ct-alert', 'error', 'Vui lòng chọn ngày giờ thi!'); return; }
-    //     if (!thoiGian) { showAlert('ct-alert', 'error', 'Vui lòng nhập thời gian thi!'); return; }
-    //     if (!gvRadio)  { showAlert('ct-alert', 'error', 'Vui lòng chọn giảng viên coi thi!'); return; }
-    //     if (!fileSV)   { showAlert('ct-alert', 'error', 'Vui lòng tải lên file danh sách thí sinh!'); return; }
-    //
-    //     const ngayGioHienThi = new Date(ngayGio).toLocaleString('vi-VN');
-    //     const gvLabel = document.querySelector('input[name="gv-radio"]:checked')
-    //         .closest('label').querySelector('b').innerText;
-    //
-    //     xacNhan({
-    //         icon: '📅', title: 'Xác nhận tạo ca thi?',
-    //         desc: `"${ten}"\nGiảng viên: ${gvLabel}\nThời gian: ${ngayGioHienThi} · ${thoiGian} phút\nFile SV: ${fileSV.name}`,
-    //         btnColor: '#2980b9',
-    //         onOk: () => {
-    //             const form = new FormData();
-    //             form.append('tenCaThi',    ten);
-    //             form.append('ngayGio',     ngayGio);
-    //             form.append('thoiGian',    thoiGian);
-    //             form.append('giangVienId', gvRadio.value);
-    //             form.append('fileSV',      fileSV);
-    //             showAlert('ct-alert', 'success', '⏳ Đang tạo ca thi...');
-    //             fetch('/api/admin/cathi/create', { method: 'POST', body: form })
-    //                 .then(r => r.json())
-    //                 .then(res => {
-    //                     showAlert('ct-alert', res.success ? 'success' : 'error', res.message);
-    //                     if (res.success) {
-    //                         if (res.loiList && res.loiList.length > 0) {
-    //                             const extra = document.createElement('div');
-    //                             extra.id = 'ct-extra-error';
-    //                             extra.style.cssText = 'background:#fef9e7;border:1px solid #f9ca24;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;';
-    //                             extra.innerHTML = `<b style="color:#f39c12;">⚠️ ${res.loiList.length} SV bị lỗi:</b>
-    //                             <ul style="margin-top:6px;padding-left:16px;color:#7f8c8d;">
-    //                                 ${res.loiList.map(e => `<li>${escHtml(e)}</li>`).join('')}
-    //                             </ul>`;
-    //                             document.getElementById('ct-alert').after(extra);
-    //                         }
-    //                         setTimeout(() => location.reload(), 1800);
-    //                     }
-    //                 });
-    //         }
-    //     });
-    // }
+
 
     function loadDanhSachGV() {
         fetch('/api/admin/giang-vien')

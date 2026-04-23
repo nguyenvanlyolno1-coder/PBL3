@@ -571,27 +571,6 @@
         setInterval(updatePanel, 5000);
         updatePanel();
     }
-    // Load danh sách URL
-    // function loadWhitelist() {
-    //     fetch(`/api/admin/cathi/${caThiId}/whitelist`)
-    //         .then(r => r.json())
-    //         .then(data => {
-    //             const el = document.getElementById('url-list');
-    //             if (!data.length) {
-    //                 el.innerHTML = '<span style="color:#e74c3c;font-size:13px;">⚠️ Chưa có URL nào được phép!</span>';
-    //                 return;
-    //             }
-    //             el.innerHTML = data.map(w => `
-    //             <div style="display:flex;align-items:center;gap:6px;
-    //                         background:#eaf4fd;padding:5px 10px;border-radius:20px;">
-    //                 <span style="font-size:13px;color:#2980b9;">🔗 ${w.url}</span>
-    //                 ${w.mota ? `<span style="font-size:11px;color:#7f8c8d;">(${w.mota})</span>` : ''}
-    //                 <button onclick="xoaUrl(${w.id})"
-    //                     style="background:none;border:none;color:#e74c3c;
-    //                            cursor:pointer;font-size:14px;line-height:1;">✕</button>
-    //             </div>`).join('');
-    //         });
-    // }
 
     function moThemUrl() {
         const url  = prompt('Nhập URL được phép (vd: lms.dut.udn.vn):');
